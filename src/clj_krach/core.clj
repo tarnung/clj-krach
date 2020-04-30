@@ -5,7 +5,8 @@
             [clj-krach.melody :as k]))
 
 (comment 
-  {:time pos-int?
+  {:type keyword?
+   :time pos-int?
    :pitch pos-int?
    :duration pos-int?
    :part (or keyword?
@@ -15,7 +16,10 @@
               :fx [{:fx keyword?
                     :options {}}]})
    :options {}
-   :control [{}]})
+   :control [{:type :control
+              :sym symbol?
+              :offset pos-int?
+              :options {}}]})
 
 ;; ----------
 
@@ -48,12 +52,28 @@
                                 f f)
          :else note)))
 
-(defn synth-to-code [{:keys [pitch duration part]
-                      :or {part :beep}}]
+(defn resolve-control [note]
+  (let [sym (gensym)] 
+   (->> note
+        :control
+        (map #(assoc % 
+                     :type :control
+                     :sym sym
+                     :time (+ (:time note)
+                              (:offset %))))
+        (concat [(assoc note :sym sym)]))))
+
+(defn synth-to-code 
+  [{:keys [pitch duration part sym options]
+    :or {part :beep}}]
   (when (not (or (not pitch) (zero? pitch) (= :r pitch)))
-    (str "synth " part
+    (str (when sym (str sym "=")) "synth " part
          ", note: " (k/format-nr pitch)
-         (when duration (str ", release: " (k/format-nr duration))))))
+         (when (and duration (not (:release options))) 
+           (str ", release: " (k/format-nr duration))))))
+
+(defn control-to-code [{:keys [sym]}]
+  (str "control " sym))
 
 (defn sample-to-code [{:keys [pitch part]}]
   (when (not (or (not pitch) (zero? pitch) (= :r pitch)))
@@ -67,6 +87,7 @@
 (defn note-to-code [{:keys [type options] :as note}]
   (let [code (case type
                :sample (sample-to-code note)
+               :control (control-to-code note)
                #_#_:midi (midi-to-code note)
                (synth-to-code note))
         opts (k/format-options options)]
@@ -103,6 +124,8 @@
                                      (k/format-options defaults) "\n"))
          (->> notes
               (map resolve-part)
+              (mapcat resolve-control)
+              (sort-by :time)
               notes-to-code)
          (close-fx fx)
          "end\n")))
