@@ -67,8 +67,21 @@ Sonic Pi synth options can be added as a map under the :options key.
                    :cutoff 50}}])
 ```
 
+### defaults
+Instead of a simple keyword the :part key can itself be a map with a :part key. Sonic Pi synth option defaults can be added as a map under the :defaults key.
+
+```clojure
+(krach [{:time 0
+         :pitch 67
+         :duration 2
+         :part {:part :prophet
+                :defaults {:attack 0.5
+                           :release 1
+                           :cutoff 50}}}])
+```
+
 ### effects
-Instead of a simple keyword the :part key can itself be a map with a :part key. A vector of effect descriptions can be added under the :fx key. 
+A vector of effect descriptions can be added to the :part map under the :fx key. 
 
 ```clojure
 (krach [{:pitch 52

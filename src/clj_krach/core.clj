@@ -53,7 +53,7 @@
                                 f f)
          :else note)))
 
-(defn resolve-control [{:keys [options] :as note}]
+(defn resolve-control [{:keys [options] {:keys [defaults]} :part :as note}]
   (let [sym (gensym)]
     (->> note
          :control
@@ -62,7 +62,7 @@
                       :sym sym
                       :time (+ (:time note)
                                (:offset %))))
-         (map (fn [c] (update c :options #(merge options %))))
+         (map (fn [c] (update c :options #(merge defaults options %))))
          (concat [(assoc note :sym sym)]))))
 
 (defn synth-to-code 
