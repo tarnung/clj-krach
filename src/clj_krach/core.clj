@@ -47,26 +47,28 @@
 (defn resolve-part [note]
   (let [f (get-in note [:part :fn])]
    (cond (-> note :part keyword?) note
+         (-> note :part string?) note
          (-> note :part map?) (cond-> note
                                 true (assoc :part (-> note :part :part))
                                 f f)
          :else note)))
 
-(defn resolve-control [note]
-  (let [sym (gensym)] 
-   (->> note
-        :control
-        (map #(assoc % 
-                     :type :control
-                     :sym sym
-                     :time (+ (:time note)
-                              (:offset %))))
-        (concat [(assoc note :sym sym)]))))
+(defn resolve-control [{:keys [options] :as note}]
+  (let [sym (gensym)]
+    (->> note
+         :control
+         (map #(assoc %
+                      :type :control
+                      :sym sym
+                      :time (+ (:time note)
+                               (:offset %))))
+         (map (fn [c] (update c :options #(merge options %))))
+         (concat [(assoc note :sym sym)]))))
 
 (defn synth-to-code 
   [{:keys [pitch duration part sym options]
     :or {part :beep}}]
-  (when (not (or (not pitch) (zero? pitch) (= :r pitch)))
+  (when-not (or (not pitch) (zero? pitch) (= :r pitch))
     (str (when sym (str sym "=")) "synth " part
          ", note: " (k/format-nr pitch)
          (when (and duration (not (:release options))) 
@@ -75,9 +77,8 @@
 (defn control-to-code [{:keys [sym]}]
   (str "control " sym))
 
-(defn sample-to-code [{:keys [pitch part]}]
-  (when (not (or (not pitch) (zero? pitch) (= :r pitch)))
-    (str "sample " part)))
+(defn sample-to-code [{:keys [part]}]
+  (str "sample " part))
 
 (defn midi-to-code [{:keys [pitch part]}]
   (when (not (or (not pitch) (zero? pitch) (= :r pitch))) 
@@ -141,6 +142,12 @@
                    (map format-thread))))
        (apply concat)
        (apply str)))
+
+(defn krach [notes]
+  (when-not @sonic-pi-client (init))
+  (->> notes
+       leipzig->sonic-pi
+       spit-and-run))
 
 #_(defn live-loop 
   ([notes]
